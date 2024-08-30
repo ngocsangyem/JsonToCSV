@@ -13,7 +13,10 @@
 
         <!-- Upload CSV -->
         <div>
-          <label for="csv-upload" class="block text-sm font-medium text-gray-700 mb-2">Upload CSV</label>
+          <label for="csv-upload" class="block text-sm font-medium text-gray-700 mb-2">
+            Upload CSV
+            <template v-if="selectedFile">({{ selectedFile.name }})</template>
+          </label>
           <FileUpload :multiple="false" customUpload auto severity="secondary" accept=".csv" :maxFileSize="1000000"
             :file-limit="1" @select="handleFileSelect($event)" mode="basic" class="p-button-outline" />
         </div>
@@ -94,7 +97,7 @@ type Language = {
 const toast = useToast();
 
 const jsonInput = ref('');
-const selectedFile = ref(null);
+const selectedFile = ref<File>();
 const selectedLanguages = ref<Language[]>([]);
 const csvContent = ref('');
 const conversionDirection = ref('jsonToCSV');
