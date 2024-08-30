@@ -3,7 +3,8 @@
 import { createApp } from 'vue';
 import App from './App.vue';
 import PrimeVue from 'primevue/config';
-import Aura from '@primevue/themes/aura';
+import Noir from './presets/Noir';
+import ToastService from 'primevue/toastservice';
 import 'primeicons/primeicons.css';
 import './index.css';
 
@@ -11,16 +12,14 @@ const app = createApp(App);
 
 app.use(PrimeVue, {
     theme: {
-        preset: Aura,
+        preset: Noir,
         options: {
             prefix: 'p',
-            darkModeSelector: 'light',
-            cssLayer: {
-                name: 'primevue',
-                order: 'tailwind-base, primevue, tailwind-utilities'
-            }
+            darkModeSelector: '.p-dark',
+            cssLayer: false,
         }
     }
 });
+app.use(ToastService);
 
 app.mount('#app');

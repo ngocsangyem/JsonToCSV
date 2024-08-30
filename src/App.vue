@@ -1,12 +1,14 @@
 <template>
-  <div class="container mx-auto p-6 max-w-4xl">
+  <div class="card container mx-auto p-6 max-w-4xl">
+    <ThemeSwitcher />
+
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
       <!-- Left Column -->
       <div class="space-y-6">
         <!-- Input JSON -->
         <div>
           <label for="json-input" class="block text-sm font-medium text-gray-700 mb-2">Input JSON</label>
-          <Textarea id="json-input" v-model="jsonInput" rows="10" class="w-full p-2 border border-gray-300 rounded-md" />
+          <Textarea id="json-input" v-model="jsonInput" rows="10" class="w-full p-2 surface-0 dark:surface-800 border border-surface-200 dark:border-surface-600 rounded" />
         </div>
 
         <!-- Upload CSV -->
@@ -64,25 +66,32 @@
             :label="`Download ${conversionDirection === 'jsonToCSV' ? 'CSV' : 'JSON'}`" />
         </div>
       </div>
-      <div class="border border-gray-300 rounded-md p-4 h-64 overflow-auto">
+      <div class="surface-0 dark:surface-800 border border-surface-200 dark:border-surface-600 rounded rounded p-4 h-64 overflow-auto">
         <pre>{{ previewContent }}</pre>
       </div>
     </div>
+
+    <Toast />
   </div>
 </template>
 
 <script setup lang="ts">
+import Toast from 'primevue/toast';
 import Textarea from 'primevue/textarea';
 import ButtonGroup from 'primevue/buttongroup';
 import MultiSelect from 'primevue/multiselect';
 import { ref, computed } from 'vue';
 import Button from 'primevue/button';
 import FileUpload, { type FileUploadSelectEvent } from 'primevue/fileupload';
+import { useToast } from 'primevue/usetoast';
+import ThemeSwitcher from './components/ThemeSwitcher.vue'
 
 type Language = {
   label: string;
   value: string;
 };
+
+const toast = useToast();
 
 const jsonInput = ref('');
 const selectedFile = ref(null);
@@ -92,12 +101,10 @@ const conversionDirection = ref('jsonToCSV');
 const previewContent = ref('');
 const conversionResult = ref('');
 
+
 // Mock list of countries (replace with actual data)
 const languageOptions: Language[] = [
   {
-    label: "English",
-    value: "en"
-  }, {
     label: "Chinese",
     value: "zh"
   }, {
@@ -109,7 +116,15 @@ const languageOptions: Language[] = [
   }
 ];
 
-const languagesList = computed(() => selectedLanguages.value.map((language) => language.label))
+const languagesList = computed(() => selectedLanguages.value.map((language) => language.label));
+
+const showError = (message: string) => {
+  toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+};
+
+const showSuccess = (message: string) => {
+  toast.add({ severity: 'success', summary: 'Success Message', detail: message, life: 3000 });
+};
 
 const handleFileSelect = (event: FileUploadSelectEvent) => {
   const file = event.files[0];
@@ -126,7 +141,7 @@ const handleFileSelect = (event: FileUploadSelectEvent) => {
 };
 
 const jsonToCsv = (jsonData: Record<string, string>, languages: Language['label'][]) => {
-  const headers = ['Key', 'Value', ...languages];
+  const headers = ['Key', 'English', ...languages];
   const rows = [];
 
   // Iterate over each key in the JSON object
@@ -179,9 +194,12 @@ const handleConversion = () => {
       const result = csvToJson(csvContent.value);
       conversionResult.value = JSON.stringify(result, null, 2);
       previewContent.value = conversionResult.value.slice(0, 500);
+
+      showSuccess('Conversion successful');
     } catch (error) {
       previewContent.value = 'Error converting CSV to JSON: ' + error.message;
       conversionResult.value = '';
+      showError(previewContent.value);
     }
   } else {
     // Convert JSON to CSV
@@ -190,9 +208,12 @@ const handleConversion = () => {
 
       conversionResult.value = jsonToCsv(jsonData, languagesList.value);
       previewContent.value = conversionResult.value.slice(0, 500);
+
+      showSuccess('Conversion successful');
     } catch (error) {
       previewContent.value = 'Error converting JSON to CSV: ' + error.message;
       conversionResult.value = '';
+      showError(previewContent.value);
     }
   }
 };
@@ -210,16 +231,18 @@ const downloadResult = () => {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+
+  showSuccess('Download successful');
 };
 
 const copyJSON = async () => {
   if (conversionResult.value && conversionDirection.value === 'csvToJSON') {
     try {
       await navigator.clipboard.writeText(conversionResult.value);
-      alert('JSON copied to clipboard!');
+      showSuccess('JSON copied to clipboard');
     } catch (err) {
       console.error('Failed to copy JSON: ', err);
-      alert('Failed to copy JSON. Please try again.');
+      showError('Failed to copy JSON');
     }
   }
 };
