@@ -6,30 +6,14 @@
         <!-- Input JSON -->
         <div>
           <label for="json-input" class="block text-sm font-medium text-gray-700 mb-2">Input JSON</label>
-          <Textarea id="json-input" v-model="jsonInput" rows="10"
-            class="w-full p-2 border border-gray-300 rounded-md" />
+          <Textarea id="json-input" v-model="jsonInput" rows="10" class="w-full p-2 border border-gray-300 rounded-md" />
         </div>
 
         <!-- Upload CSV -->
         <div>
           <label for="csv-upload" class="block text-sm font-medium text-gray-700 mb-2">Upload CSV</label>
-          <div class="flex items-center justify-center w-full">
-            <label for="csv-upload"
-              class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-              <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                <svg class="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
-                  fill="none" viewBox="0 0 20 16">
-                  <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2" />
-                </svg>
-                <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">Click to upload</span> or drag and
-                  drop</p>
-                <p class="text-xs text-gray-500">CSV file</p>
-              </div>
-              <input id="csv-upload" type="file" class="hidden" @change="handleFileUpload" accept=".csv" />
-            </label>
-          </div>
-          <p v-if="selectedFile" class="mt-2 text-sm text-gray-500">{{ selectedFile.name }}</p>
+          <FileUpload :multiple="false" customUpload auto severity="secondary" accept=".csv" :maxFileSize="1000000"
+            :file-limit="1" @select="handleFileSelect($event)" mode="basic" class="p-button-outline" />
         </div>
       </div>
 
@@ -71,10 +55,8 @@
         </label>
         <div class="space-x-2">
           <Button v-if="conversionDirection === 'csvToJSON' && conversionResult" @click="copyJSON"
-            class="px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2"
-            icon="pi pi-copy"
-            severity="contrast"  
-          />
+            class="px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2" icon="pi pi-copy"
+            severity="contrast" />
           <Button @click="downloadResult" :disabled="!conversionResult" :class="[
             'px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2',
             { 'cursor-not-allowed': !conversionResult }
@@ -93,19 +75,25 @@
 import Textarea from 'primevue/textarea';
 import ButtonGroup from 'primevue/buttongroup';
 import MultiSelect from 'primevue/multiselect';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import Button from 'primevue/button';
+import FileUpload, { type FileUploadSelectEvent } from 'primevue/fileupload';
+
+type Language = {
+  label: string;
+  value: string;
+};
 
 const jsonInput = ref('');
 const selectedFile = ref(null);
-const selectedLanguages = ref('');
+const selectedLanguages = ref<Language[]>([]);
 const csvContent = ref('');
 const conversionDirection = ref('jsonToCSV');
 const previewContent = ref('');
 const conversionResult = ref('');
 
 // Mock list of countries (replace with actual data)
-const languageOptions = [
+const languageOptions: Language[] = [
   {
     label: "English",
     value: "en"
@@ -121,24 +109,66 @@ const languageOptions = [
   }
 ];
 
-const handleFileUpload = (event) => {
-  const file = event.target.files[0];
+const languagesList = computed(() => selectedLanguages.value.map((language) => language.label))
+
+const handleFileSelect = (event: FileUploadSelectEvent) => {
+  const file = event.files[0];
+  
   if (file) {
     selectedFile.value = file;
     const reader = new FileReader();
     reader.onload = (e) => {
-      csvContent.value = e.target.result;
+      csvContent.value = String(e.target?.result) ?? '';
       updatePreview();
     };
     reader.readAsText(file);
   }
 };
 
+const jsonToCsv = (jsonData: Record<string, string>, languages: Language['label'][]) => {
+  const headers = ['Key', 'Value', ...languages];
+  const rows = [];
+
+  // Iterate over each key in the JSON object
+  for (const key in jsonData) {
+    const row = [key, jsonData[key]];
+
+    rows.push(row);
+  }
+
+  // Convert to CSV string
+  const csvContent = [
+    headers.join(','),  // Header row
+    ...rows.map(row => row.join(','))  // Data rows
+  ].join('\n');
+
+  return csvContent;
+}
+
+const csvToJson = (content: string) => {
+  const lines = content.trim().split('\n');
+
+
+  const jsonData: Record<string, string> = {};
+
+  // Iterate over each line in the CSV (skipping the header line)
+  for (let i = 1; i < lines.length; i++) {
+    const row = lines[i].split(',');
+    const key = row[0];  // First column is the key
+    const value = row[1];  // Second column is the value
+
+    // Populate the JSON object with key-value pairs
+    jsonData[key] = value;
+  }
+
+  return jsonData;
+}
+
 const updatePreview = () => {
   if (conversionDirection.value === 'csvToJSON') {
-    previewContent.value = csvContent.value.slice(0, 500) + '...';
+    previewContent.value = csvContent.value.slice(0, 500);
   } else {
-    previewContent.value = jsonInput.value.slice(0, 500) + '...';
+    previewContent.value = jsonInput.value.slice(0, 500);
   }
 };
 
@@ -146,18 +176,9 @@ const handleConversion = () => {
   if (conversionDirection.value === 'csvToJSON') {
     // Convert CSV to JSON
     try {
-      const lines = csvContent.value.split('\n');
-      const headers = lines[0].split(',');
-      const result = lines.slice(1).map(line => {
-        const obj = {};
-        const currentLine = line.split(',');
-        headers.forEach((header, index) => {
-          obj[header.trim()] = currentLine[index].trim();
-        });
-        return obj;
-      });
+      const result = csvToJson(csvContent.value);
       conversionResult.value = JSON.stringify(result, null, 2);
-      previewContent.value = conversionResult.value.slice(0, 500) + '...';
+      previewContent.value = conversionResult.value.slice(0, 500);
     } catch (error) {
       previewContent.value = 'Error converting CSV to JSON: ' + error.message;
       conversionResult.value = '';
@@ -166,16 +187,9 @@ const handleConversion = () => {
     // Convert JSON to CSV
     try {
       const jsonData = JSON.parse(jsonInput.value);
-      if (!Array.isArray(jsonData)) {
-        throw new Error('Input JSON must be an array of objects');
-      }
-      const headers = Object.keys(jsonData[0]);
-      const csvRows = [
-        headers.join(','),
-        ...jsonData.map(row => headers.map(fieldName => JSON.stringify(row[fieldName])).join(','))
-      ];
-      conversionResult.value = csvRows.join('\n');
-      previewContent.value = conversionResult.value.slice(0, 500) + '...';
+
+      conversionResult.value = jsonToCsv(jsonData, languagesList.value);
+      previewContent.value = conversionResult.value.slice(0, 500);
     } catch (error) {
       previewContent.value = 'Error converting JSON to CSV: ' + error.message;
       conversionResult.value = '';
@@ -210,3 +224,9 @@ const copyJSON = async () => {
   }
 };
 </script>
+
+<style scoped>
+:deep(.p-fileupload-basic) {
+  justify-content: start;
+}
+</style>
