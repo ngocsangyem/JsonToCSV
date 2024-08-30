@@ -134,6 +134,11 @@ const handleFileSelect = (event: FileUploadSelectEvent) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       csvContent.value = String(e.target?.result) ?? '';
+
+      if (conversionDirection.value === 'jsonToCSV') {
+        conversionDirection.value = 'csvToJSON';
+      }
+
       updatePreview();
     };
     reader.readAsText(file);
@@ -162,7 +167,6 @@ const jsonToCsv = (jsonData: Record<string, string>, languages: Language['label'
 
 const csvToJson = (content: string) => {
   const lines = content.trim().split('\n');
-
 
   const jsonData: Record<string, string> = {};
 
