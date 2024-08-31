@@ -36,4 +36,23 @@
 //   }
 // }
 
-export {}
+import 'cypress-file-upload';
+
+declare global {
+    namespace Cypress {
+        interface Chainable {
+            // add custom commands here
+            uploadFile(fileName: string, fileContent: string, mimeType: string): Chainable<Element>
+        }
+    }
+}
+
+Cypress.Commands.add('uploadFile', (fileName: string, fileContent: string, mimeType: string) => {
+    cy.get('input[type="file"]').selectFile({
+        contents: Cypress.Buffer.from(fileContent),
+        fileName,
+        mimeType
+    }, { force: true });
+});
+
+export { }
